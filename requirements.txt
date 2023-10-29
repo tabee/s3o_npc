@@ -13,3 +13,4 @@ tiktoken
 python-dotenv
 opencv-python 
 scikit-image
+streamlit
