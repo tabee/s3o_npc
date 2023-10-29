@@ -11,3 +11,5 @@ langchain
 faiss-cpu
 tiktoken
 python-dotenv
+opencv-python 
+scikit-image
