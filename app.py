@@ -1,39 +1,85 @@
+from dotenv import load_dotenv
+import os
 import streamlit as st
+from langchain.prompts import PromptTemplate
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import StrOutputParser
 
-# Funktionen, die die Arbeit des OpenAI GPT-3.5 Turbo Modells und DALL·E simulieren
-def analyze_text(text):
-    # Simulierte Analyse des Textes
-    return "Analyseergebnis hier"
+def analyze_text(text_input_medienmitteilung):
+    # result_facts: Analyze the following text and identify all important facts
+    prompt = PromptTemplate.from_template("""
+    Analyze the following text and 
+        identify all important facts.  
+        The text is from news.admin.ch and is an 
+        official media release: \n {medienmitteilung}\n\n
+        rule: answer in same language as the media release!
+        Your fact analysis:
+    """)
+    runnable = prompt | ChatOpenAI(model=model) | StrOutputParser()
+    result_facts = runnable.invoke({"medienmitteilung": text_input_medienmitteilung})
+    print(result_facts)
+    return result_facts
 
-def generate_keywords(text):
-    # Simulierte Keyword-Generierung
-    return ["#Keyword1", "#Keyword2", "#Keyword3"]
+def generate_10_keywords(result_facts):
+    # result_top10keywords: Identify 10 keywords from the facts
+    prompt = PromptTemplate.from_template("""
+        Identify 10 keywords that are likely to rank well 
+        on Google (Switzerland). 
+        The keywords are in the same language as the 
+        following text and start with a #.
 
-def generate_tweet(text, keywords):
-    # Simulierter Tweet
-    return f"Tweet mit Keywords: {', '.join(keywords)}"
+        Text: 
+        {facts}
+        
+        Examples: #FederalCouncil #Geneva #Nyon #Motorway #A1 #Traffic #Trafficflow #Motorway     
+        Your keywords incl. #:
+    """)
+    runnable = prompt | ChatOpenAI(model=model) | StrOutputParser()
+    result_top10keywords = runnable.invoke({"facts": result_facts})
+    print(result_top10keywords)
+    return result_top10keywords
 
 # Streamlit App
-st.title('Streamlit Beispiel')
+st.title('s3o npc 🤖')
 
-# Textarea für die Eingabe des Textes
-user_input = st.text_area("Fügen Sie Ihren Text hier ein:")
+load_dotenv()
+# Konfigurationsbereich in der Sidebar
+openai_api_key = st.sidebar.text_input(
+    'OpenAI API Key',
+    value='',
+    type='password')
+optimize_input = st.sidebar.toggle('autopilot', value=True, disabled=True)
+model = st.sidebar.radio( 
+    "Choose a model:",
+    ("gpt-3.5-turbo", "gpt-4"))
 
-# Button, um die Analyse zu starten
-if st.button('Start'):
-    # Führe die Textanalyse durch
-    analysis_result = analyze_text(user_input)
-    st.subheader('Analyseergebnis:')
-    st.write(analysis_result)
 
-    # Generiere Keywords
-    keywords = generate_keywords(analysis_result)
-    st.subheader('Generierte Keywords:')
-    st.write(", ".join(keywords))
 
-    # Generiere Tweet
-    tweet = generate_tweet(analysis_result, keywords)
-    st.subheader('Generierter Tweet:')
-    st.write(tweet)
 
-    # Hier können Sie weitere Funktionen wie Fragen von Reportern oder DALL·E Prompts hinzufügen.
+
+def generate_response(input_text):
+
+    result_facts = analyze_text(input_text)
+    with st.chat_message("System", avatar="🤖"):
+        st.write(f"analyze_text\n: {result_facts}")
+
+    keywords = generate_10_keywords(result_facts)
+    with st.chat_message("System", avatar="🤖"):
+        st.write(f"keywordst\n: {keywords}")
+
+
+# Willkommensnachricht
+with st.chat_message("System", avatar="🤖"):
+    st.write("copy and paste a media release in message box and start...")
+
+# Chat Eingabebereich
+prompt = st.chat_input("Enter your message")
+if prompt:
+    with st.chat_message("User"):
+        st.write(prompt)
+
+    if not openai_api_key.startswith('sk-'):
+        with st.chat_message("System", avatar="🧙‍♂️"):
+            st.write('Please enter your OpenAI API key! Navigate to the openai website to get one.')
+    if openai_api_key.startswith('sk-'):
+        generate_response(prompt)
