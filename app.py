@@ -1,6 +1,6 @@
-from dotenv import load_dotenv
 import os
 import streamlit as st
+from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import StrOutputParser
@@ -39,6 +39,29 @@ def generate_10_keywords(result_facts):
     print(result_top10keywords)
     return result_top10keywords
 
+def generate3keywords(text_input_medienmitteilung, result_top10keywords):
+    # result_top3keywords: Analyze the following keywords and text. 
+    prompt = PromptTemplate.from_template("""
+        Analyze the following keywords and text. 
+        Identify exactly 3 keywords that can rank 
+        well on Google (Switzerland). 
+
+        Examples: #FederalCouncil #ChuckNorris #Thailand  (on one line)
+    
+        ===============
+        Keywords: 
+        {top10keywords}
+
+        Text: 
+        {medienmitteilung}
+        ===============
+        Your top 3 keywords in the same language as the text/keywords:
+    """)
+    runnable = prompt | ChatOpenAI(model=model) | StrOutputParser()
+    result_top3keywords = runnable.invoke({"medienmitteilung": text_input_medienmitteilung, "top10keywords": result_top10keywords})
+    print(result_top3keywords)
+    return result_top3keywords
+
 # Streamlit App
 st.title('s3o npc 🤖')
 
@@ -58,7 +81,7 @@ model = st.sidebar.radio(
 
 
 def generate_response(input_text):
-
+    medienmitteilung = input_text
     result_facts = analyze_text(input_text)
     with st.chat_message("System", avatar="🤖"):
         st.write(f"analyze_text\n: {result_facts}")
@@ -66,6 +89,11 @@ def generate_response(input_text):
     keywords = generate_10_keywords(result_facts)
     with st.chat_message("System", avatar="🤖"):
         st.write(f"keywordst\n: {keywords}")
+        
+    top_keywords = generate3keywords(medienmitteilung, keywords)
+    with st.chat_message("System", avatar="🤖"):
+        st.write(f"top keywordst\n: {top_keywords}")
+
 
 
 # Willkommensnachricht
@@ -77,9 +105,9 @@ prompt = st.chat_input("Enter your message")
 if prompt:
     with st.chat_message("User"):
         st.write(prompt)
-
+    
+    if openai_api_key.startswith('sk-'):
+        generate_response(prompt)
     if not openai_api_key.startswith('sk-'):
         with st.chat_message("System", avatar="🧙‍♂️"):
             st.write('Please enter your OpenAI API key! Navigate to the openai website to get one.')
-    if openai_api_key.startswith('sk-'):
-        generate_response(prompt)
